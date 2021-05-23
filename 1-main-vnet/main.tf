@@ -1,66 +1,87 @@
+
 #############################################################################
 # VARIABLES
 #############################################################################
-
 variable "resource_group_name" {
   type = string
 }
-
 variable "location" {
   type    = string
-  default = "eastus"
+  default = "northeurope"
 }
-
-
 variable "vnet_cidr_range" {
   type    = string
   default = "10.0.0.0/16"
 }
-
-variable "subnet_prefixes" {
-  type    = list(string)
-  default = ["10.0.0.0/24", "10.0.1.0/24"]
+variable "subnet1_prefix" {
+  type    = string
+  default = "10.0.0.0/24"
 }
 
-variable "subnet_names" {
-  type    = list(string)
-  default = ["web", "database"]
+variable "subnet2_prefix" {
+  type    = string
+  default = "10.0.1.0/24"
 }
+
+
+variable "subnet1_name" {
+  type    = string
+  default = "web"
+}
+
+variable "subnet2_name" {
+  type    = string
+  default = "database"
+}
+
 
 #############################################################################
 # PROVIDERS
 #############################################################################
-
 provider "azurerm" {
-  version = "~> 1.0"
 }
-
 #############################################################################
 # RESOURCES
 #############################################################################
 
-module "vnet-main" {
-  source              = "Azure/vnet/azurerm"
-  version             = "1.2.0"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  vnet_name           = var.resource_group_name
-  address_space       = var.vnet_cidr_range
-  subnet_prefixes     = var.subnet_prefixes
-  subnet_names        = var.subnet_names
-  nsg_ids             = {}
-
+resource "azurerm_resource_group" "rg" {
+  name     = "rg-${var.resource_group_name}"
+  location = var.location
   tags = {
-    environment = "dev"
+    project = "Terraform"
     costcenter  = "it"
 
   }
 }
 
+resource "azurerm_virtual_network" "vnet" {
+  name                = "vnet-${var.resource_group_name}"
+  address_space       = [var.vnet_cidr_range]
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  tags = {
+    project = "Terraform"
+    costcenter  = "it"
+  }
+}
+
+resource "azurerm_subnet" "subnet1" {
+  name                 = "sub-${var.subnet1_name}"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefix = var.subnet1_prefix
+}
+
+resource "azurerm_subnet" "subnet2" {
+  name                 = "sub-${var.subnet2_name}"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefix = var.subnet2_prefix
+}
+
 #############################################################################
 # OUTPUTS
 #############################################################################
-
 output "vnet_id" {
-  value = module.vnet-main.vnet_id
+  value = azurerm_virtual_network.vnet.id
 }
